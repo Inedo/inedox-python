@@ -1,0 +1,8 @@
+Python/packages/*
+bin
+obj
+*.suo
+*.user
+*.vspscc
+*/_sgbak/*
+.vs
