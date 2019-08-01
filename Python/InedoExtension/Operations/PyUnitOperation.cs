@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Inedo.Agents;
 using Inedo.Documentation;
 using Inedo.ExecutionEngine.Executer;
 using Inedo.Extensibility;
@@ -66,13 +67,16 @@ namespace Inedo.Extensions.Python.Operations
                 var result = (test.FirstOrDefault(e => e.Type == EventType.Error || e.Type == EventType.Failure || e.Type == EventType.UnexpectedSuccess || e.Type == EventType.Skip)
                     ?? test.FirstOrDefault(e => e.Type == EventType.Success || e.Type == EventType.ExpectedFailure))?.Type;
 
-                var desc = test.Key.Desc;
                 var stdout = end?.Output;
                 var stderr = end?.Error;
                 var skipReason = test.FirstOrDefault(e => e.Type == EventType.Skip)?.Message;
                 var exceptions = test.Select(e => e.Err).Where(e => e != null).ToArray();
 
-                throw new NotImplementedException("TODO: format log");
+                return "Test: " + test.Key.ID + AH.ConcatNE("\n", test.Key.Desc) +
+                    "\n\nResult: " + AH.CoalesceString(result, "Unknown") + AH.ConcatNE(" (", skipReason, ")") +
+                    AH.ConcatNE("\n\nOutput:\n", stdout) + AH.ConcatNE("\n\nError:\n", stderr) +
+                    (exceptions.Any() ? "\n\nExceptions:\n\n" + string.Join("\n\n", exceptions) : string.Empty) +
+                    "\n";
             }
 
             DateTimeOffset getStartTime(IGrouping<TestCaseID, TestEvent> test)
@@ -88,10 +92,32 @@ namespace Inedo.Extensions.Python.Operations
             }
         }
 
-        private Task RunTestsAsync(IOperationExecutionContext context)
+        private async Task RunTestsAsync(IOperationExecutionContext context)
         {
-            throw new NotImplementedException("TODO: run the command");
-            //return this.ExecuteCommandLineAsync(context, ???);
+            var fileOps = await context.Agent.GetServiceAsync<IFileOperationsExecuter>();
+
+            var scriptsDir = fileOps.CombinePath(await fileOps.GetBaseWorkingDirectoryAsync(), "scripts");
+            await fileOps.CreateDirectoryAsync(scriptsDir);
+            var runnerFileName = fileOps.CombinePath(scriptsDir, $"BuildMasterTestRunner_{Guid.NewGuid().ToString("N")}.py");
+            using (var fileStream = await fileOps.OpenFileAsync(runnerFileName, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+            using (var stream = typeof(PyUnitOperation).Assembly.GetManifestResourceStream("Inedo.Extensions.Python.BuildMasterTestRunner.py"))
+            {
+                await stream.CopyToAsync(fileStream);
+            }
+
+            try
+            {
+                await this.ExecuteCommandLineAsync(context, new RemoteProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = runnerFileName,
+                    WorkingDirectory = context.WorkingDirectory
+                });
+            }
+            finally
+            {
+                try { await fileOps.DeleteFileAsync(runnerFileName); } catch { }
+            }
         }
 
         protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)

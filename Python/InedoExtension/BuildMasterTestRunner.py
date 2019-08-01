@@ -1,4 +1,4 @@
-﻿from unittest import result, TextTestRunner
+﻿from unittest import result, TextTestRunner, main
 from json import dumps
 from time import time, perf_counter
 from traceback import format_exception
@@ -104,3 +104,6 @@ class BuildMasterTestResult(result.TestResult):
 class BuildMasterTestRunner(TextTestRunner):
 	def __init__(self, **kwargs):
 		super(BuildMasterTestRunner, self).__init__(self, resultclass = BuildMasterTestResult, buffer = True, **kwargs)
+
+if __name__ == '__main__':
+	main(module = None, testRunner = BuildMasterTestRunner)
