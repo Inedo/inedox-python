@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Inedo.Agents;
+using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.ExecutionEngine.Executer;
 using Inedo.Extensibility;
@@ -21,6 +22,22 @@ namespace Inedo.Extensions.Python.Operations
     public sealed class PyUnitOperation : ExecuteOperation
     {
         private List<TestEvent> Events { get; } = new List<TestEvent>();
+
+        [ScriptAlias("Arguments")]
+        [DefaultValue("discover")]
+        public string Arguments { get; set; } = "discover";
+        [ScriptAlias("Verbose")]
+        [DefaultValue(true)]
+        public bool Verbose { get; set; } = true;
+        [ScriptAlias("FailFast")]
+        [DefaultValue(false)]
+        public bool FailFast { get; set; } = false;
+        [ScriptAlias("RecordOutput")]
+        [DefaultValue(true)]
+        public bool RecordOutput { get; set; } = true;
+        [ScriptAlias("PythonExePath")]
+        [DefaultValue("python")]
+        public string PythonExePath { get; set; } = "python";
 
         public override async Task ExecuteAsync(IOperationExecutionContext context)
         {
@@ -107,12 +124,17 @@ namespace Inedo.Extensions.Python.Operations
 
             try
             {
-                await this.ExecuteCommandLineAsync(context, new RemoteProcessStartInfo
+                var exit = await this.ExecuteCommandLineAsync(context, new RemoteProcessStartInfo
                 {
-                    FileName = "python",
-                    Arguments = runnerFileName,
+                    FileName = this.PythonExePath,
+                    Arguments = $"{runnerFileName} {this.Arguments}{(this.Verbose ? " -v" : string.Empty)}{(this.FailFast ? " -f" : string.Empty)}{(this.RecordOutput ? " -b" : string.Empty)}",
                     WorkingDirectory = context.WorkingDirectory
                 });
+
+                if (exit != 0)
+                {
+                    this.LogError($"Exited with code {exit}");
+                }
             }
             finally
             {
@@ -135,12 +157,20 @@ namespace Inedo.Extensions.Python.Operations
 
             base.LogProcessOutput(text);
         }
+
+        protected override void LogProcessError(string text)
+        {
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                this.LogInformation(text);
+            }
+        }
     }
 
     public enum EventType
     {
         StartSuite,
-        StopSute,
+        StopSuite,
         StartCase,
         StopCase,
         Error,
@@ -181,7 +211,7 @@ namespace Inedo.Extensions.Python.Operations
     public sealed class TestCaseID
     {
         [JsonIgnore]
-        public string Group => this.ID.LastIndexOf('.') == -1 ? null : this.ID.Substring(0, this.ID.IndexOf('.'));
+        public string Group => this.ID.LastIndexOf('.') == -1 ? null : this.ID.Substring(0, this.ID.LastIndexOf('.'));
         [JsonIgnore]
         public string Name => this.ID.Substring(this.ID.LastIndexOf('.') + 1);
 
