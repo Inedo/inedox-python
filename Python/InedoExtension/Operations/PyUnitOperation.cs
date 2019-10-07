@@ -14,12 +14,11 @@ using Newtonsoft.Json;
 namespace Inedo.Extensions.Python.Operations
 {
     [ScriptAlias("Execute-PyUnit")]
-    [ScriptNamespace("Python")]
     [DisplayName("Execute Python Unit Tests")]
     [Description("Executes Python unit tests.")]
-    [Tag("python"), Tag("unit-tests")]
+    [Tag("unit-tests")]
     [AppliesTo(InedoProduct.BuildMaster)]
-    public sealed class PyUnitOperation : ExecuteOperation
+    public sealed class PyUnitOperation : PythonOperationBase
     {
         private List<TestEvent> Events { get; } = new List<TestEvent>();
 
@@ -35,9 +34,6 @@ namespace Inedo.Extensions.Python.Operations
         [ScriptAlias("RecordOutput")]
         [DefaultValue(true)]
         public bool RecordOutput { get; set; } = true;
-        [ScriptAlias("PythonExePath")]
-        [DefaultValue("python")]
-        public string PythonExePath { get; set; } = "python";
 
         public override async Task ExecuteAsync(IOperationExecutionContext context)
         {
@@ -124,12 +120,14 @@ namespace Inedo.Extensions.Python.Operations
 
             try
             {
-                var exit = await this.ExecuteCommandLineAsync(context, new RemoteProcessStartInfo
+                var startInfo = new RemoteProcessStartInfo
                 {
                     FileName = this.PythonExePath,
                     Arguments = $"{runnerFileName} {this.Arguments}{(this.Verbose ? " -v" : string.Empty)}{(this.FailFast ? " -f" : string.Empty)}{(this.RecordOutput ? " -b" : string.Empty)}",
                     WorkingDirectory = context.WorkingDirectory
-                });
+                };
+                await this.WrapInVirtualEnv(context, startInfo);
+                var exit = await this.ExecuteCommandLineAsync(context, startInfo);
 
                 if (exit != 0)
                 {
