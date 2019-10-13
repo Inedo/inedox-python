@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Inedo.Extensibility;
 
 [assembly: AssemblyTitle("Python")]
 [assembly: AssemblyDescription("Contains operations for Python testing.")]
@@ -11,3 +12,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyFileVersion("1.0.0")]
 [assembly: CLSCompliant(false)]
 [assembly: ComVisible(false)]
+
+[assembly: AppliesTo(InedoProduct.BuildMaster | InedoProduct.Otter | InedoProduct.Hedgehog)]
