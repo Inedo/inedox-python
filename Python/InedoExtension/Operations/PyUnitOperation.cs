@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Inedo.Agents;
@@ -111,8 +112,8 @@ namespace Inedo.Extensions.Python.Operations
 
             var scriptsDir = fileOps.CombinePath(await fileOps.GetBaseWorkingDirectoryAsync(), "scripts");
             await fileOps.CreateDirectoryAsync(scriptsDir);
-            var runnerFileName = fileOps.CombinePath(scriptsDir, $"BuildMasterTestRunner_{Guid.NewGuid().ToString("N")}.py");
-            using (var fileStream = await fileOps.OpenFileAsync(runnerFileName, System.IO.FileMode.Create, System.IO.FileAccess.Write))
+            var runnerFileName = fileOps.CombinePath(scriptsDir, $"BuildMasterTestRunner_{Guid.NewGuid():N}.py");
+            using (var fileStream = await fileOps.OpenFileAsync(runnerFileName, FileMode.Create, FileAccess.Write))
             using (var stream = typeof(PyUnitOperation).Assembly.GetManifestResourceStream("Inedo.Extensions.Python.BuildMasterTestRunner.py"))
             {
                 await stream.CopyToAsync(fileStream);
@@ -159,66 +160,7 @@ namespace Inedo.Extensions.Python.Operations
         protected override void LogProcessError(string text)
         {
             if (!string.IsNullOrWhiteSpace(text))
-            {
                 this.LogInformation(text);
-            }
         }
-    }
-
-    public enum EventType
-    {
-        StartSuite,
-        StopSuite,
-        StartCase,
-        StopCase,
-        Error,
-        Failure,
-        Success,
-        Skip,
-        ExpectedFailure,
-        UnexpectedSuccess
-    }
-
-    public sealed class TestEvent
-    {
-        public EventType Type { get; set; }
-
-        private static readonly DateTimeOffset UnixEpoch = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero).ToLocalTime();
-        [JsonIgnore]
-        public DateTimeOffset NowTime => TestEvent.UnixEpoch.AddSeconds(this.Now);
-
-        // epoch time (seconds since unix epoch)
-        public double Now { get; set; }
-        // monotonic time (seconds since arbitrary time, does not change when system clock is altered)
-        public double Time { get; set; }
-
-        // for Skip
-        public string Message { get; set; }
-
-        // for StopCase
-        public string Output { get; set; }
-        public string Error { get; set; }
-
-        // for Error, Failure, and ExpectedFailure
-        public string Err { get; set; }
-
-        // for every type except StartSuite and StopSuite
-        public TestCaseID Test { get; set; }
-    }
-
-    public sealed class TestCaseID
-    {
-        [JsonIgnore]
-        public string Group => this.ID.LastIndexOf('.') == -1 ? null : this.ID.Substring(0, this.ID.LastIndexOf('.'));
-        [JsonIgnore]
-        public string Name => this.ID.Substring(this.ID.LastIndexOf('.') + 1);
-
-        public string ID { get; set; }
-        public string Desc { get; set; }
-
-        public override bool Equals(object obj) => obj != null && this.ID == (obj as TestCaseID)?.ID;
-        public override int GetHashCode() => EqualityComparer<string>.Default.GetHashCode(ID);
-        public static bool operator ==(TestCaseID case1, TestCaseID case2) => EqualityComparer<TestCaseID>.Default.Equals(case1, case2);
-        public static bool operator !=(TestCaseID case1, TestCaseID case2) => !(case1 == case2);
     }
 }

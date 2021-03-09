@@ -48,9 +48,7 @@ namespace Inedo.Extensions.Python.Operations
             var installedPackages = JsonConvert.DeserializeAnonymousType(output.ToString(), new[] { new { name = string.Empty, version = string.Empty } });
             this.LogInformation("Installed packages:");
             foreach (var package in installedPackages)
-            {
                 this.LogInformation($"{package.name} v{package.version}");
-            }
         }
 
         protected override ExtendedRichDescription GetDescription(IOperationConfiguration config)
