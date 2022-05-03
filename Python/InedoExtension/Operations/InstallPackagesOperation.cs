@@ -35,7 +35,8 @@ namespace Inedo.Extensions.Python.Operations
                 startInfo.Arguments += " -r requirements.txt";
             }
 
-            startInfo.Arguments += AH.ConcatNE(" ", this.AdditionalArguments);
+            if (!string.IsNullOrWhiteSpace(this.AdditionalArguments))
+                startInfo.Arguments += this.AdditionalArguments;
 
             await this.WrapInVirtualEnv(context, startInfo);
             await this.ExecuteCommandLineAsync(context, startInfo);

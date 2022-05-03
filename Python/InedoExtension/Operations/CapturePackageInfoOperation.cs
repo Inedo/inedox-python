@@ -27,7 +27,8 @@ namespace Inedo.Extensions.Python.Operations
                 WorkingDirectory = context.WorkingDirectory
             };
 
-            startInfo.Arguments += AH.ConcatNE(" ", this.AdditionalArguments);
+            if (!string.IsNullOrWhiteSpace(this.AdditionalArguments))
+                startInfo.Arguments += this.AdditionalArguments;
 
             await this.WrapInVirtualEnv(context, startInfo);
 

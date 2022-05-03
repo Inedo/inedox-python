@@ -86,9 +86,9 @@ namespace Inedo.Extensions.Python.Operations
                 var skipReason = test.FirstOrDefault(e => e.Type == EventType.Skip)?.Message;
                 var exceptions = test.Select(e => e.Err).Where(e => e != null).ToArray();
 
-                return "Test: " + test.Key.ID + AH.ConcatNE("\n", test.Key.Desc) +
-                    "\n\nResult: " + AH.CoalesceString(result, "Unknown") + AH.ConcatNE(" (", skipReason, ")") +
-                    AH.ConcatNE("\n\nOutput:\n", stdout) + AH.ConcatNE("\n\nError:\n", stderr) +
+                return "Test: " + test.Key.ID + ConcatNE("\n", test.Key.Desc) +
+                    "\n\nResult: " + AH.CoalesceString(result, "Unknown") + ConcatNE(" (", skipReason, ")") +
+                    ConcatNE("\n\nOutput:\n", stdout) + ConcatNE("\n\nError:\n", stderr) +
                     (exceptions.Any() ? "\n\nExceptions:\n\n" + string.Join("\n\n", exceptions) : string.Empty) +
                     "\n";
             }
@@ -103,6 +103,14 @@ namespace Inedo.Extensions.Python.Operations
                 var start = (test.FirstOrDefault(e => e.Type == EventType.StartCase) ?? test.First()).Time;
                 var end = (test.FirstOrDefault(e => e.Type == EventType.StopCase) ?? test.Last()).Time;
                 return TimeSpan.FromSeconds(end - start);
+            }
+
+            static string ConcatNE(string a, string b, string c = "")
+            {
+                if (!string.IsNullOrEmpty(b))
+                    return a + b + c;
+                else
+                    return string.Empty;
             }
         }
 
@@ -150,7 +158,7 @@ namespace Inedo.Extensions.Python.Operations
         {
             if (text.StartsWith("__BuildMasterPythonTestRunner__"))
             {
-                this.Events.Add(JsonConvert.DeserializeObject<TestEvent>(text.Substring("__BuildMasterPythonTestRunner__".Length)));
+                this.Events.Add(JsonConvert.DeserializeObject<TestEvent>(text["__BuildMasterPythonTestRunner__".Length..]));
                 return;
             }
 
