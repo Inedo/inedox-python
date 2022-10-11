@@ -1,15 +1,14 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 using Inedo.Extensibility;
 
 [assembly: AssemblyTitle("Python")]
-[assembly: AssemblyDescription("Contains operations for Python testing.")]
+[assembly: AssemblyDescription("Contains operations for Python and Pip.")]
 [assembly: AssemblyCompany("Inedo, LLC")]
 [assembly: AssemblyProduct("any")]
-[assembly: AssemblyCopyright("Copyright © Inedo 2021")]
-[assembly: AssemblyVersion("1.0.0")]
-[assembly: AssemblyFileVersion("1.0.0")]
+[assembly: AssemblyCopyright("Copyright © Inedo 2022")]
+[assembly: AssemblyVersion("2.2.0")]
+[assembly: AssemblyFileVersion("2.2.0")]
 [assembly: CLSCompliant(false)]
 [assembly: ComVisible(false)]
 

@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Threading.Tasks;
 using Inedo.Agents;
 using Inedo.Documentation;
 using Inedo.Extensibility;
@@ -7,8 +6,10 @@ using Inedo.Extensibility.Operations;
 
 namespace Inedo.Extensions.Python.Operations
 {
-    [DisplayName("Install Python Packages")]
+    [ScriptNamespace("Pip")]
     [ScriptAlias("Install-Packages")]
+    [DisplayName("Install Pip Packages")]
+    [Description("Installs packages using pip.")]
     public sealed class InstallPackagesOperation : PythonOperationBase
     {
         [ScriptAlias("InstallFromRequirements")]
@@ -23,6 +24,32 @@ namespace Inedo.Extensions.Python.Operations
 
         public override async Task ExecuteAsync(IOperationExecutionContext context)
         {
+            await PipFreezeAsync(context);
+            await PipInstallAsync(context);
+        }
+
+        private async Task PipFreezeAsync(IOperationExecutionContext context)
+        {
+            var startInfo = new RemoteProcessStartInfo
+            {
+                FileName = this.PythonExePath,
+                Arguments = "-m pip freeze --progress-bar=off --no-color",
+                WorkingDirectory = context.WorkingDirectory,
+                OutputFileName = "requirements.txt"
+            };
+
+            if (this.InstallFromRequirements)
+                startInfo.Arguments += " -r requirements.txt";
+
+            if (!string.IsNullOrWhiteSpace(this.AdditionalArguments))
+                startInfo.Arguments += this.AdditionalArguments;
+
+            await this.WrapInVirtualEnv(context, startInfo);
+            await this.ExecuteCommandLineAsync(context, startInfo);
+        }
+
+        private async Task PipInstallAsync(IOperationExecutionContext context)
+        {
             var startInfo = new RemoteProcessStartInfo
             {
                 FileName = this.PythonExePath,
@@ -31,9 +58,7 @@ namespace Inedo.Extensions.Python.Operations
             };
 
             if (this.InstallFromRequirements)
-            {
                 startInfo.Arguments += " -r requirements.txt";
-            }
 
             if (!string.IsNullOrWhiteSpace(this.AdditionalArguments))
                 startInfo.Arguments += this.AdditionalArguments;

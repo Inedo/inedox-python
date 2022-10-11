@@ -1,12 +1,11 @@
 ﻿using System.ComponentModel;
-using System.Threading.Tasks;
 using Inedo.Agents;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.ExecutionEngine.Executer;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
-using Inedo.Web;
+using Inedo.IO;
 
 namespace Inedo.Extensions.Python.Operations
 {
@@ -18,17 +17,21 @@ namespace Inedo.Extensions.Python.Operations
         {
         }
 
-        [ScriptAlias("PythonExePath")]
-        [DefaultValue("python")]
-        [FieldEditMode(FieldEditMode.ServerFilePath)]
-        public string PythonExePath { get; set; } = "python";
+        [Category("Advanced")]
+        [ScriptAlias("PythonPath")]
+        [ScriptAlias("PythonExePath", Obsolete = true)]
+        [DefaultValue("$PythonPath")]
+        [DisplayName("Python path")]
+        [Description("Full path to python/python.exe on the target server.")]
+        public string PythonExePath { get; set; } = "$PythonPath";
 
+        [Category("Advanced")]
         [ScriptAlias("VirtualEnv")]
-        [PlaceholderText("(use system scope)")]
-        [FieldEditMode(FieldEditMode.ServerFilePath)]
-        public string VirtualEnv { get; set; }
+        [DefaultValue("$PythonVirtualEnv")]
+        public string VirtualEnv { get; set; } = "$PythonVirtualEnv";
 
         protected Task WrapInVirtualEnv(IOperationExecutionContext context, RemoteProcessStartInfo startInfo) => WrapInVirtualEnv(this, context, startInfo, this.PythonExePath, this.VirtualEnv);
+
         internal static async Task WrapInVirtualEnv(ILogSink logger, IOperationExecutionContext context, RemoteProcessStartInfo startInfo, string pythonExePath, string virtualEnv)
         {
             if (string.IsNullOrEmpty(virtualEnv))
@@ -80,6 +83,67 @@ namespace Inedo.Extensions.Python.Operations
             }
 
             startInfo.FileName = (await fileOps.GetFileInfoAsync(fileOps.CombinePath(virtualEnv, "bin", "python"))).FullName;
+        }
+
+        protected async Task<string> GetPythonExePathAsync(IOperationExecutionContext context)
+        {
+            if (string.IsNullOrWhiteSpace(this.PythonExePath))
+            {
+                this.LogDebug("PythonPath is not defined; searching for python...");
+
+                string foundPath = null;
+
+                var fileOps = await context.Agent.GetServiceAsync<IFileOperationsExecuter>();
+                if (fileOps.DirectorySeparator == '/')
+                {
+                    if (await fileOps.FileExistsAsync("/bin/python3"))
+                        foundPath = "/bin/python3";
+                }
+                else
+                {
+                    var rubbish = await context.Agent.GetServiceAsync<IRemoteProcessExecuter>();
+                    var programFilesDir = await rubbish.GetEnvironmentVariableValueAsync("ProgramFiles");
+
+                    var path = await getBestVersionAsync(programFilesDir!);
+                    if (path == null)
+                    {
+                        var userPythonDir = fileOps.CombinePath(await rubbish.GetEnvironmentVariableValueAsync("LocalAppData"), "Programs", "Python");
+                        if (await fileOps.DirectoryExistsAsync(userPythonDir))
+                            path = await getBestVersionAsync(userPythonDir);
+                    }
+
+                    foundPath = path;
+
+                    async Task<string> getBestVersionAsync(string searchPath)
+                    {
+                        var dirs = from d in await fileOps.GetFileSystemInfosAsync(searchPath, new MaskingContext(new[] { "Python3*" }, Enumerable.Empty<string>()))
+                                   where d is SlimDirectoryInfo && d.Name.StartsWith("Python3")
+                                   let ver = AH.ParseInt(d.Name.Substring("Python3".Length))
+                                   where ver.HasValue
+                                   orderby ver descending
+                                   select d.FullName;
+
+                        foreach (var dir in dirs)
+                        {
+                            var path = fileOps.CombinePath(dir, "python.exe");
+                            if (await fileOps.FileExistsAsync(path))
+                                return path;
+                        }
+
+                        return null;
+                    }
+                }
+
+                if (foundPath == null)
+                    throw new ExecutionFailureException("Could not find python interpreter and $PythonPath configuration variable is not set.");
+
+                this.LogDebug("Using python at: " + foundPath);
+                return foundPath;
+            }
+            else
+            {
+                return context.ResolvePath(this.PythonExePath);
+            }
         }
     }
 }

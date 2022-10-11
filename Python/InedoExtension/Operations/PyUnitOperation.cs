@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.ComponentModel;
 using Inedo.Agents;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
@@ -122,7 +117,7 @@ namespace Inedo.Extensions.Python.Operations
             await fileOps.CreateDirectoryAsync(scriptsDir);
             var runnerFileName = fileOps.CombinePath(scriptsDir, $"BuildMasterTestRunner_{Guid.NewGuid():N}.py");
             using (var fileStream = await fileOps.OpenFileAsync(runnerFileName, FileMode.Create, FileAccess.Write))
-            using (var stream = typeof(PyUnitOperation).Assembly.GetManifestResourceStream("Inedo.Extensions.Python.BuildMasterTestRunner.py"))
+            using (var stream = typeof(PyUnitOperation).Assembly.GetManifestResourceStream("Inedo.Extensions.Python.BuildMasterTestRunner.py")!)
             {
                 await stream.CopyToAsync(fileStream);
             }
@@ -158,7 +153,7 @@ namespace Inedo.Extensions.Python.Operations
         {
             if (text.StartsWith("__BuildMasterPythonTestRunner__"))
             {
-                this.Events.Add(JsonConvert.DeserializeObject<TestEvent>(text["__BuildMasterPythonTestRunner__".Length..]));
+                this.Events.Add(JsonConvert.DeserializeObject<TestEvent>(text["__BuildMasterPythonTestRunner__".Length..])!);
                 return;
             }
 
