@@ -1,5 +1,4 @@
-﻿using System;
-using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 
 namespace Inedo.Extensions.Python.Operations
 {
@@ -7,9 +6,8 @@ namespace Inedo.Extensions.Python.Operations
     {
         public EventType Type { get; set; }
 
-        private static readonly DateTimeOffset UnixEpoch = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero).ToLocalTime();
         [JsonIgnore]
-        public DateTimeOffset NowTime => TestEvent.UnixEpoch.AddSeconds(this.Now);
+        public DateTimeOffset NowTime => DateTimeOffset.UnixEpoch.AddSeconds(this.Now);
 
         // epoch time (seconds since unix epoch)
         public double Now { get; set; }

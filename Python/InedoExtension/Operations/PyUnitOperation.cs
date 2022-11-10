@@ -1,11 +1,12 @@
 ﻿using System.ComponentModel;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Inedo.Agents;
 using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.ExecutionEngine.Executer;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
-using Newtonsoft.Json;
 
 namespace Inedo.Extensions.Python.Operations
 {
@@ -17,6 +18,7 @@ namespace Inedo.Extensions.Python.Operations
     public sealed class PyUnitOperation : PythonOperationBase
     {
         private List<TestEvent> Events { get; } = new List<TestEvent>();
+        private readonly JsonSerializerOptions jsonSerializerOptions = new() { Converters = { new JsonStringEnumConverter() } };
 
         [ScriptAlias("Arguments")]
         [DefaultValue("discover")]
@@ -55,12 +57,9 @@ namespace Inedo.Extensions.Python.Operations
                 {
                     switch (e.Type)
                     {
-                        case EventType.Success:
-                        case EventType.ExpectedFailure:
+                        case EventType.Success or EventType.ExpectedFailure:
                             return UnitTestStatus.Passed;
-                        case EventType.Error:
-                        case EventType.Failure:
-                        case EventType.UnexpectedSuccess:
+                        case EventType.Error or EventType.Failure or EventType.UnexpectedSuccess:
                             return UnitTestStatus.Failed;
                         case EventType.Skip:
                             return UnitTestStatus.Inconclusive;
@@ -153,7 +152,7 @@ namespace Inedo.Extensions.Python.Operations
         {
             if (text.StartsWith("__BuildMasterPythonTestRunner__"))
             {
-                this.Events.Add(JsonConvert.DeserializeObject<TestEvent>(text["__BuildMasterPythonTestRunner__".Length..])!);
+                this.Events.Add(JsonSerializer.Deserialize<TestEvent>(text, this.jsonSerializerOptions));
                 return;
             }
 

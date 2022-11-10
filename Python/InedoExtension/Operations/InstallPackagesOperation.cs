@@ -1,8 +1,11 @@
 ﻿using System.ComponentModel;
 using Inedo.Agents;
+using Inedo.Diagnostics;
 using Inedo.Documentation;
 using Inedo.Extensibility;
 using Inedo.Extensibility.Operations;
+using Inedo.Extensions.PackageSources;
+using Inedo.Web;
 
 namespace Inedo.Extensions.Python.Operations
 {
@@ -18,14 +21,49 @@ namespace Inedo.Extensions.Python.Operations
         [DefaultValue(true)]
         public bool InstallFromRequirements { get; set; }
 
+        [ScriptAlias("Source")]
+        [DisplayName("Package source")]
+        [Description("If specified, this PyPI package index will be used to install packages from.")]
+        [SuggestableValue(typeof(PyPiPackageSourceSuggestionProvider))]
+        public string PackageSource { get; set; }
+
         [ScriptAlias("AdditionalArguments")]
         [DisplayName("Additional arguments")]
         public string AdditionalArguments { get; set; }
 
         public override async Task ExecuteAsync(IOperationExecutionContext context)
         {
+            string indexUrl = null;
+
+            if (!string.IsNullOrEmpty(this.PackageSource))
+            {
+                var sourceId = new PackageSourceId(this.PackageSource);
+                if (sourceId.Format != PackageSourceIdFormat.Url)
+                {
+                    this.LogDebug($"Resolving package source \"{this.PackageSource}\"...");
+                    var source = await AhPackages.GetPackageSourceAsync(sourceId, context, context.CancellationToken);
+                    if (source == null)
+                    {
+                        this.LogError($"Package source \"{this.PackageSource}\" not found.");
+                        return;
+                    }
+
+                    if (source is not IPyPiPackageSource pypi)
+                    {
+                        this.LogError($"Package source \"{this.PackageSource}\" is a {source.GetType().Name} source; it must be a PyPI source for use with this operation.");
+                        return;
+                    }
+
+                    indexUrl = pypi.IndexUrl;
+                }
+                else
+                {
+                    indexUrl = sourceId.GetUrl();
+                }
+            }
+
             await PipFreezeAsync(context);
-            await PipInstallAsync(context);
+            await PipInstallAsync(context, indexUrl);
         }
 
         private async Task PipFreezeAsync(IOperationExecutionContext context)
@@ -48,7 +86,7 @@ namespace Inedo.Extensions.Python.Operations
             await this.ExecuteCommandLineAsync(context, startInfo);
         }
 
-        private async Task PipInstallAsync(IOperationExecutionContext context)
+        private async Task PipInstallAsync(IOperationExecutionContext context, string indexUrl)
         {
             var startInfo = new RemoteProcessStartInfo
             {
@@ -59,6 +97,9 @@ namespace Inedo.Extensions.Python.Operations
 
             if (this.InstallFromRequirements)
                 startInfo.Arguments += " -r requirements.txt";
+
+            if (!string.IsNullOrWhiteSpace(indexUrl))
+                startInfo.Arguments += $" -i \"{indexUrl}\"";
 
             if (!string.IsNullOrWhiteSpace(this.AdditionalArguments))
                 startInfo.Arguments += this.AdditionalArguments;
